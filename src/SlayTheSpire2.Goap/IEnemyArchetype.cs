@@ -14,6 +14,7 @@ namespace SlayTheSpire2.Goap
         Enemy CreateEnemy(ushort knownHP, Ascension ascension)
             => new Enemy(
                 InitialStatuses(ascension),
+                this,
                 new Health
                 {
                     Current = knownHP,
