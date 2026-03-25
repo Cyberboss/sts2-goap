@@ -13,7 +13,7 @@ namespace SlayTheSpire2.Goap.Cards
 
         public override bool EnemyTargeted => false;
 
-        public override byte EnergyCost(bool upgraded) => 1;
+        protected override byte EnergyCost => 1;
 
         public IEnumerable<IStatus> InvokerStatuses(bool upgraded)
         {

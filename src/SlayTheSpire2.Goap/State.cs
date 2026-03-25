@@ -4,6 +4,7 @@
     {
         public const string CurrentHP = "Current HP";
         public const string EnemiesAlive = "Enemies Alive";
+        public const string Energy = "Energy";
         public const string Gold = "Gold";
         public const string MaximumHP = "Maximum HP";
         public const string PotionCount = "Potion Count";
