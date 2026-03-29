@@ -1,14 +1,13 @@
-﻿using System;
-
-namespace Vakuu.Engine.Statuses
+﻿namespace Vakuu.Engine.Statuses
 {
     internal sealed class Strength : IStatus
     {
         public string Name => "Strength";
 
-        public void OnActionTakenAgainst(ActionBuilder stateMutationBuilder)
+        public void OnActionTaken(IActionBuilder actionBuilder, Combatant source, Combatant? target)
         {
-            throw new NotImplementedException();
+            if (target == null)
+                return;
         }
     }
 }

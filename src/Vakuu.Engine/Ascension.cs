@@ -2,7 +2,8 @@
 {
     public enum Ascension
     {
-        SwarmingElites = 1,
+        None,
+        SwarmingElites,
         WearyTraveler,
         Poverty,
         TightBelt,

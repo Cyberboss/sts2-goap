@@ -10,9 +10,9 @@ namespace Vakuu.Engine
     {
         public Character Character { get; }
 
-        public List<IRelic> Artifacts { get; }
+        public IReadOnlyList<IRelic> Relics { get; }
 
-        public List<Card> Deck { get; }
+        public List<DeckCard> Deck { get; }
 
         public override string HealthState => State.PlayerCurrentHealth;
 
@@ -20,24 +20,20 @@ namespace Vakuu.Engine
 
         public PlayerCharacter(Character character)
         {
-            Artifacts = new List<IRelic>(1);
-            Deck = new List<Card>(10);
+            Relics = new List<IRelic>(1);
+            Deck = new List<DeckCard>(10);
             Character = character;
-
-            var baseCardEnumerable = Enumerable.Repeat<object?>(null, 4);
-
-            Deck.AddRange(Enumerable.Repeat<object?>(null, 6).Select(_ => new Card(Cards.Ironclad.Strike.Instance)));
-            Deck.AddRange(Enumerable.Repeat<object?>(null, 4).Select(_ => new Card(Cards.Ironclad.Defend.Instance)));
-            Deck.Add(new Card(Bash.Instance));
 
             switch (character)
             {
                 case Character.Ironclad:
+                    Deck.AddRange(Enumerable.Repeat<object?>(null, 6).Select(_ => new DeckCard(Cards.Ironclad.Strike.Instance)));
+                    Deck.AddRange(Enumerable.Repeat<object?>(null, 4).Select(_ => new DeckCard(Cards.Ironclad.Defend.Instance)));
+                    Deck.Add(new DeckCard(Bash.Instance));
+                    break;
                 default:
                     throw new NotImplementedException($"No initial deck for {character}!");
             }
         }
-
-        public override string StatusState(IStatus status) => throw new NotImplementedException();
     }
 }

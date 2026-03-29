@@ -8,5 +8,6 @@
         Exhaust,
         Eternal,
         Innate,
+        Sly,
     }
 }

@@ -5,6 +5,11 @@
         public abstract string HealthState { get; }
         public abstract string MaxHealthState { get; }
 
-        public abstract string StatusState(IStatus status);
+        public string StatusState<TStatus>()
+            where TStatus : IStatus
+            => StatusState(StatusRepository.Get<TStatus>());
+
+        public string StatusState(IStatus status)
+            => $"{State.StatusPrefix}{this}{status.Name}";
     }
 }

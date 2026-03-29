@@ -5,7 +5,7 @@ namespace Vakuu.Engine
 {
     public static class DeckAnalyzer
     {
-        public static ulong EvaluateDeckScore(IReadOnlyCollection<Card> deck)
+        public static ulong EvaluateDeckScore(IReadOnlyCollection<DeckCard> deck)
         {
             throw new NotImplementedException();
         }

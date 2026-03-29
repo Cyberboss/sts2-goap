@@ -13,7 +13,7 @@ namespace Vakuu.Engine.Goals
                   new Dictionary<string, ComparisonValuePair>
                   {
                       {
-                          State.CurrentHP,
+                          State.PlayerCurrentHealth,
                           new ComparisonValuePair
                           {
                               Operator = ComparisonOperator.LessThanOrEquals,

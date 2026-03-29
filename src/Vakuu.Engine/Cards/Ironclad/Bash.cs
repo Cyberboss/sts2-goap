@@ -8,8 +8,9 @@ namespace Vakuu.Engine.Cards.Ironclad
 
         public override CardType Type => CardType.Attack;
 
-        public override void BuildAction(IReadOnlyCollection<Enemy> targets, ActionBuilder builder, bool upgraded) => throw new System.NotImplementedException();
         public override IEnumerable<IReadOnlyCollection<IReadOnlyCollection<Enemy>>> SelectTargetPermutations(IEnumerable<Enemy> potentialTargets, bool upgraded)
             => SingleTargeted(potentialTargets);
+
+        public override void BuildAction(IReadOnlyCollection<Enemy> targets, IActionBuilder builder, bool upgraded) => throw new System.NotImplementedException();
     }
 }

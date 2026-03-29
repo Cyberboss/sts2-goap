@@ -1,34 +1,45 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading;
+using System.Linq;
 
 namespace Vakuu.Engine
 {
     public sealed class Enemy : Combatant
     {
-        static ulong IDAllocator;
-
         readonly Queue<IEnemyMove> upcomingMoves;
 
-        public Enemy(IEnemyArchetype archetype)
+        internal Enemy(IEnemyArchetype archetype, IDAllocator idAllocator)
         {
             Archetype = archetype ?? throw new ArgumentNullException(nameof(archetype));
             upcomingMoves = new Queue<IEnemyMove>(archetype.Moveset);
-            ID = Interlocked.Increment(ref IDAllocator);
+            ID = idAllocator.Allocate();
+            Alive = true;
+            HealthState = State.EnemyCurrentHealthPrefix + ToString();
+            MaxHealthState = State.EnemyMaxHealthPrefix + ToString();
+            AttackCountState = State.EnemyAttackCountPrefix + ToString();
+            AttackAmountState = State.EnemyAttackAmountPrefix + ToString();
         }
 
         public ulong ID { get; init; }
         public IEnemyArchetype Archetype { get; }
         public IReadOnlyCollection<IEnemyMove> UpcomingMoves => upcomingMoves;
+        public IEnemyMove NextMove => UpcomingMoves.First();
 
-        public override string HealthState => throw new NotImplementedException();
+        public override string HealthState { get; }
 
-        public override string MaxHealthState => throw new NotImplementedException();
+        public override string MaxHealthState { get; }
 
-        public override string ToString() => $"{Archetype.Name} ({ID})";
+        public string AttackCountState { get; }
+        public string AttackAmountState { get; }
+
+        public bool Alive { get; private set; }
+
+        public override string ToString() => $"{Archetype.Name} (#{ID})";
 
         public void CycleMoveset()
             => upcomingMoves.Enqueue(upcomingMoves.Dequeue());
-        public override string StatusState(IStatus status) => throw new NotImplementedException();
+
+        public void Kill()
+            => Alive = false;
     }
 }

@@ -17,11 +17,11 @@ namespace Vakuu.Engine.Goals
                           new ComparisonValuePair
                           {
                               Value = (byte)0,
-                              Operator = ComparisonOperator.Equals,
+                              Operator = ComparisonOperator.LessThanOrEquals,
                           }
                       },
                       {
-                          State.CurrentHP,
+                          State.PlayerCurrentHealth,
                           new ComparisonValuePair
                           {
                               Operator = ComparisonOperator.GreaterThan,

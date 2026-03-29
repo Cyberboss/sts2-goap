@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Vakuu.Engine.Cards
 {
@@ -13,7 +12,9 @@ namespace Vakuu.Engine.Cards
         public override IEnumerable<IReadOnlyCollection<IReadOnlyCollection<Enemy>>> SelectTargetPermutations(IEnumerable<Enemy> potentialTargets, bool upgraded)
             => SingleTargeted(potentialTargets);
 
-        public override void BuildAction(IReadOnlyCollection<Enemy> targets, ActionBuilder builder, bool upgraded) => throw new NotImplementedException();
+        public override void BuildAction(IReadOnlyCollection<Enemy> targets, IActionBuilder builder, bool upgraded)
+        {
+        }
     }
 }
 

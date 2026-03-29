@@ -5,6 +5,6 @@
         public string Name { get; }
         public EnemyMoveType Type { get; }
 
-        void Apply();
+        bool Apply(IActionBuilder actionBuilder, Enemy enemy, Ascension ascension);
     }
 }

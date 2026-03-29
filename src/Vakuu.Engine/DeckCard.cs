@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace Vakuu.Engine
 {
-    public sealed class Card : ICard
+    public sealed class DeckCard : ICard
     {
         public ICardArchetype Archetype { get; }
 
@@ -12,7 +12,7 @@ namespace Vakuu.Engine
 
         readonly HashSet<CardModifier> additionalModifiers;
 
-        public Card(ICardArchetype archetype, bool upgraded = false)
+        public DeckCard(ICardArchetype archetype, bool upgraded = false)
         {
             Archetype = archetype ?? throw new ArgumentNullException(nameof(archetype));
             additionalModifiers = new HashSet<CardModifier>();
@@ -26,8 +26,6 @@ namespace Vakuu.Engine
                 .ToHashSet();
 
         public void Upgrade()
-        {
-            Upgraded = true;
-        }
+            => Upgraded = true;
     }
 }

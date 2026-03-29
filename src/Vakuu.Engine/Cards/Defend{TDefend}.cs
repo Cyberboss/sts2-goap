@@ -15,7 +15,7 @@ namespace Vakuu.Engine.Cards
 
         public override void BuildAction(
             IReadOnlyCollection<Enemy> targets,
-            ActionBuilder builder,
+            IActionBuilder builder,
             bool upgraded)
         {
             throw new NotImplementedException();

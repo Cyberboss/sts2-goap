@@ -12,7 +12,7 @@ namespace Vakuu.Engine
         public abstract CardType Type { get; }
         public abstract CardPool Pool { get; }
 
-        public abstract void BuildAction(IReadOnlyCollection<Enemy> targets, ActionBuilder builder, bool upgraded);
+        public abstract void BuildAction(IReadOnlyCollection<Enemy> targets, IActionBuilder builder, bool upgraded);
         public abstract IEnumerable<IReadOnlyCollection<IReadOnlyCollection<Enemy>>> SelectTargetPermutations(IEnumerable<Enemy> potentialTargets, bool upgraded);
         protected static IEnumerable<IReadOnlyCollection<IReadOnlyCollection<Enemy>>> SingleTargeted(IEnumerable<Enemy> potentialTargets)
             => potentialTargets.Select(

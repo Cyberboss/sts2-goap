@@ -12,7 +12,7 @@ namespace Vakuu.Engine.Goals
                   weight,
                   new Dictionary<string, bool>
                   {
-                      { State.MaximumHP, true },
+                      { State.PlayerMaxHealth, true },
                   })
         {
         }

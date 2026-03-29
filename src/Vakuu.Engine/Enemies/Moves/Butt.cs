@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Vakuu.Engine.Enemies.Moves
+﻿namespace Vakuu.Engine.Enemies.Moves
 {
     internal sealed class Butt : IEnemyMove
     {
@@ -8,6 +6,15 @@ namespace Vakuu.Engine.Enemies.Moves
 
         public EnemyMoveType Type => EnemyMoveType.Attack;
 
-        public void Apply() => throw new NotImplementedException();
+        public bool Apply(IActionBuilder actionBuilder, Enemy enemy, Ascension ascension)
+        {
+            actionBuilder.Reduce(
+                new Reducer(
+                    _ => ascension >= Ascension.DeadlyEnemies
+                        ? 13
+                        : 12,
+                    enemy.AttackAmountState));
+            return true;
+        }
     }
 }
