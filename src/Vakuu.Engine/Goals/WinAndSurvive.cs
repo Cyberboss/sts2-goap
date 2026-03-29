@@ -17,7 +17,7 @@ namespace Vakuu.Engine.Goals
                           new ComparisonValuePair
                           {
                               Value = (byte)0,
-                              Operator = ComparisonOperator.LessThanOrEquals,
+                              Operator = ComparisonOperator.Equals,
                           }
                       },
                       {

@@ -8,6 +8,8 @@
         public const string CardInExhaustPrefix = "Card Exhausted: ";
         public const string CardInHandPrefix = "Card in Hand: ";
         public const string CardIsPlayedPowerPrefix = "Played Power: ";
+        public const string DeckSize = "Deck Size";
+        public const string DiscardSize = "Discard Size";
         public const string EnemiesAlive = "Enemies Alive";
         public const string EnemyAttackAmountPrefix = "Enemy Attack Damage: ";
         public const string EnemyAttackCountPrefix = "Enemy Attack Count: ";

@@ -1,19 +1,18 @@
-﻿using System;
-
-namespace Vakuu.Engine.Statuses
+﻿namespace Vakuu.Engine.Statuses
 {
     internal sealed class Vulnerable : IStatus
     {
         public string Name => "Vulnerable";
 
-        public void OnActionTakenAgainst(ActionBuilder stateMutationBuilder)
+        public void OnActionTaken(IActionBuilder actionBuilder, Combatant source, Combatant? target)
         {
-            throw new NotImplementedException();
-        }
+            if (target == null)
+                return;
 
-        public void OnTurnStart(ActionBuilder stateMutationBuilder)
-        {
-            throw new NotImplementedException();
+            actionBuilder.Reduce(
+                new Reducer(
+                    (variables, input) => input * ((variables[target.StatusState(this)] > 0) ? 1.5f : 1.0f),
+                    target.IncomingDamageVariable));
         }
     }
 }

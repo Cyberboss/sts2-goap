@@ -18,6 +18,12 @@ namespace Vakuu.Engine
 
         public override string MaxHealthState => State.PlayerMaxHealth;
 
+        public override string BlockGainVariable => Variables.PlayerBlockGain;
+
+        public override string IncomingDamageVariable => Variables.PlayerIncomingDamage;
+
+        public override string AttackAmountVariable => Variables.PlayerAttackDamage;
+
         public PlayerCharacter(Character character)
         {
             Relics = new List<IRelic>(1);

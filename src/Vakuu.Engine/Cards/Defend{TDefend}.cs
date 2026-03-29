@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Vakuu.Engine.Cards
 {
@@ -11,14 +10,15 @@ namespace Vakuu.Engine.Cards
         public override CardType Type => CardType.Attack;
 
         public override IEnumerable<IReadOnlyCollection<IReadOnlyCollection<Enemy>>> SelectTargetPermutations(IEnumerable<Enemy> potentialTargets, bool upgraded)
-            => SelfTargeted();
+            => SelfTargeted;
 
-        public override void BuildAction(
+        protected override void BuildActionImpl(
             IReadOnlyCollection<Enemy> targets,
             IActionBuilder builder,
             bool upgraded)
-        {
-            throw new NotImplementedException();
-        }
+            => builder.Reduce(
+                new Reducer(
+                    input => input + (upgraded ? 8 : 5),
+                    Variables.PlayerBlockGain));
     }
 }

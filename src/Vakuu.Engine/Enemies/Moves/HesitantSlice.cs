@@ -17,7 +17,7 @@ namespace Vakuu.Engine.Enemies.Moves
             actionBuilder.Reduce(
                 new Reducer(
                     _ => 6,
-                    enemy.AttackAmountState));
+                    enemy.AttackAmountVariable));
             return true;
         }
     }

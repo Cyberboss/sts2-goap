@@ -1,38 +1,49 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
+
+using Vakuu.Engine.Statuses;
 
 namespace Vakuu.Engine
 {
     public sealed class FieldCard : ICard
     {
+        private static readonly Reducer ResetAttackDamageReducer = new Reducer(
+            input => 0,
+            Variables.PlayerAttackDamage);
+
+        private static readonly Reducer ResetBlockGainReducer = new Reducer(
+            input => 0,
+            Variables.PlayerBlockGain);
+
         public delegate void PlayDelegate(Play play);
 
         readonly PlayDelegate playSink;
         readonly DeckCard deckCard;
-        readonly HashSet<CardModifier> additionalModifiers;
 
         internal FieldCard(PlayDelegate playSink, DeckCard deckCard, IDAllocator idAllocator)
             : this(playSink, deckCard, null, idAllocator, deckCard.Upgraded)
         {
         }
 
-        FieldCard(PlayDelegate playSink, DeckCard deckCard, HashSet<CardModifier>? additionalModifiers, IDAllocator idAllocator, bool upgraded)
+        FieldCard(PlayDelegate playSink, DeckCard deckCard, IEnumerable<CardModifier>? additionalModifiers, IDAllocator idAllocator, bool upgraded)
         {
             this.playSink = playSink ?? throw new ArgumentNullException(nameof(playSink));
             this.deckCard = deckCard ?? throw new ArgumentNullException(nameof(deckCard));
-            this.additionalModifiers = additionalModifiers != null
-                ? new HashSet<CardModifier>(additionalModifiers)
-                : new HashSet<CardModifier>();
+
             ID = idAllocator.Allocate();
             Upgraded = upgraded;
 
-            InHandState = $"{State.CardInHandPrefix} {ToString()} (#{ID})";
-            InDiscardState = $"{State.CardInDiscardPrefix} {ToString()} (#{ID})"; ;
-            InDeckState = $"{State.CardInDeckPrefix} {ToString()} (#{ID})";
-            InExhaustState = $"{State.CardInExhaustPrefix} {ToString()} (#{ID})";
-            RemovedState = $"{State.CardIsPlayedPowerPrefix} {ToString()} (#{ID})";
+            RecalculateModifiers(additionalModifiers);
+
+            var name = ToString();
+            InHandState = $"{State.CardInHandPrefix} {name}";
+            InDiscardState = $"{State.CardInDiscardPrefix} {name}";
+            InDeckState = $"{State.CardInDeckPrefix} {name}";
+            InExhaustState = $"{State.CardInExhaustPrefix} {name}";
+            RemovedState = $"{State.CardIsPlayedPowerPrefix} {name}";
         }
 
         public ulong ID { get; init; }
@@ -51,20 +62,40 @@ namespace Vakuu.Engine
 
         public bool Upgraded { get; private set; }
 
-        public void Upgrade() => deckCard.Upgrade();
-
-        public HashSet<CardModifier> GetModifiers()
+        public void Upgrade()
         {
-            var baseResult = deckCard.GetModifiers();
-            baseResult.UnionWith(additionalModifiers);
-            return baseResult;
+            Upgraded = true;
+            RecalculateModifiers(null);
         }
+
+        public IReadOnlySet<CardModifier> Modifiers { get; private set; }
 
         internal FieldCard Duplicate(IDAllocator idAllocator)
         {
-            throw new NotImplementedException("TODO: State update!");
-            var result = new FieldCard(playSink, deckCard, additionalModifiers, idAllocator, Upgraded);
-            return result;
+            throw new NotImplementedException();
+        }
+
+        public static void FinalizePreviousCardAction(IReadOnlyCollection<Enemy> targets, IActionBuilder builder, PlayerCharacter character)
+        {
+            foreach (var target in targets)
+            {
+                builder.Reduce(
+                    new Reducer(
+                        (variables, input) => input - Math.Min(input, variables[Variables.PlayerAttackDamage]),
+                        target.HealthState));
+                builder.Reduce(
+                    new Reducer(
+                        (variables, input) => variables[target.HealthState] == 0.0f ? input - 1 : input,
+                        State.EnemiesAlive));
+            }
+
+            builder.Reduce(
+                new Reducer(
+                    (variables, input) => input - variables[Variables.PlayerBlockGain],
+                    character.StatusState<Block>()));
+
+            builder.Reduce(ResetAttackDamageReducer);
+            builder.Reduce(ResetBlockGainReducer);
         }
 
         public bool EquivalentTo(FieldCard other)
@@ -74,9 +105,9 @@ namespace Vakuu.Engine
                 && Upgraded == other.Upgraded;
         }
 
-        public override string ToString() => Archetype.ToString(Upgraded);
+        public override string ToString() => $"{Archetype.ToString(deckCard.Upgraded)} (#{ID})"; // using the constant name from the deck here intentionally
 
-        public IEnumerable<MountainGoap.Action> GenerateActions(IEnumerable<Enemy> enemies, PlayerCharacter playerCharacter)
+        public IEnumerable<MountainGoap.Action> GenerateActions(IEnumerable<Enemy> enemies, PlayerCharacter character)
         {
             var userSelectionPermutations = Archetype.SelectTargetPermutations(enemies, Upgraded);
             foreach (var userSelectionRandomPermutations in userSelectionPermutations)
@@ -96,7 +127,7 @@ namespace Vakuu.Engine
                         bool first = true;
                         foreach (var target in targetList)
                         {
-                            if (first)
+                            if (!first)
                                 playName.Append(", ");
                             else
                                 first = false;
@@ -108,7 +139,7 @@ namespace Vakuu.Engine
                     var playNameStr = playName.ToString();
                     var builder = new ActionBuilder(
                         enemies,
-                        playerCharacter,
+                        character,
                         () => playSink(
                             new Play
                             {
@@ -120,20 +151,62 @@ namespace Vakuu.Engine
                         cost);
 
                     builder.AddStaticPrecondition(InHandState, true);
-                    builder.AddVariable(InHandState, 0.0f, result => result > 0.0f);
 
-                    Archetype.BuildAction(targetList, builder, Upgraded);
+                    if (Modifiers.Contains(CardModifier.Exhaust))
+                    {
+                        builder.AddStaticPostCondition(InExhaustState, true);
+                        builder.AddStaticPostCondition(InHandState, false);
+                    }
+                    else if (Archetype.Type == CardType.Power)
+                    {
+                        builder.AddStaticPostCondition(RemovedState, true);
+                        builder.AddStaticPostCondition(InHandState, false);
+                    }
+                    else
+                    {
+                        builder.AddVariableFromState(InDiscardState, result => result > 0.0f);
+                        builder.Reduce(
+                            new Reducer(
+                                _ => 1.0f,
+                                InDiscardState));
+
+                        builder.AddVariableFromState(InHandState, result => result > 0.0f);
+                        builder.Reduce(
+                            new Reducer(
+                                _ => 0.0f,
+                                InHandState));
+                    }
+
+                    builder.AddVariableFromState(State.CardDraw, result => (byte)result);
+
+                    builder.AddVariable<int>(Variables.PlayerAttackDamage, 0, null);
+                    builder.AddVariable<int>(Variables.PlayerCardActionNumber, 0, null);
+
+                    Archetype.BuildAction(targetList, builder, character, Upgraded);
+
+                    FinalizePreviousCardAction(targetList, builder, character);
 
                     if (targetList.Count > 0)
                         foreach (var target in targetList)
-                            StatusRepository.Apply(status => status.OnActionTaken(builder, playerCharacter, target));
+                            StatusRepository.Apply(status => status.OnActionTaken(builder, character, target));
                     else
-                        StatusRepository.Apply(status => status.OnActionTaken(builder, playerCharacter, null));
+                        StatusRepository.Apply(status => status.OnActionTaken(builder, character, null));
 
                     yield return builder.Build();
                 }
             }
         }
 
+        [MemberNotNull(nameof(Modifiers))]
+        void RecalculateModifiers(IEnumerable<CardModifier>? additionalModifiers)
+        {
+            var modifiers = new HashSet<CardModifier>(deckCard.Modifiers);
+            if (additionalModifiers != null)
+                modifiers.UnionWith(additionalModifiers);
+            if (Upgraded && !deckCard.Upgraded)
+                modifiers.UnionWith(deckCard.Archetype.Modifiers(true));
+
+            Modifiers = modifiers;
+        }
     }
 }

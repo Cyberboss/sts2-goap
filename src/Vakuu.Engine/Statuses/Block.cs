@@ -6,16 +6,15 @@ namespace Vakuu.Engine.Statuses
     {
         public string Name => "Block";
 
-        public short Amount => throw new System.NotImplementedException();
-
-        public void OnActionTakenAgainst(ActionBuilder stateMutationBuilder)
+        public void OnActionTaken(IActionBuilder actionBuilder, Combatant source, Combatant? target)
         {
-            throw new NotImplementedException();
-        }
+            if (target == null)
+                return;
 
-        public void OnTurnStart(ActionBuilder stateMutationBuilder)
-        {
-            throw new NotImplementedException();
+            actionBuilder.Reduce(
+                new Reducer(
+                    (variables, input) => input - (float)Math.Min(input, variables[target.StatusState(this)]),
+                    target.IncomingDamageVariable));
         }
     }
 }

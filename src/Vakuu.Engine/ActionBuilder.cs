@@ -16,6 +16,7 @@ namespace Vakuu.Engine
         readonly Dictionary<string, object?> postconditions;
         readonly Dictionary<string, (float? InitialValue, Func<float, object?>? PostConversion)> variables;
         readonly List<IReducer> reducers;
+        readonly List<Func<IReadOnlyDictionary<string, object?>, bool>> dynamicPreconditions;
         readonly List<string>[] taggedVariables;
 
         float? cost;
@@ -29,6 +30,7 @@ namespace Vakuu.Engine
             preconditions = new Dictionary<string, object?>();
             arithmeticPreconditions = new Dictionary<string, ComparisonValuePair>();
             postconditions = new Dictionary<string, object?>();
+            dynamicPreconditions = new List<Func<IReadOnlyDictionary<string, object?>, bool>>();
             variables = new Dictionary<string, (float?, Func<float, object?>?)>();
             reducers = new List<IReducer>();
             var totalTags = ((IEnumerable<ActionVariableTag>)Enum.GetValues(typeof(ActionVariableTag))).Cast<int>().Max() + 1;
@@ -54,6 +56,9 @@ namespace Vakuu.Engine
 
         public void AddPrecondition(string stateSource, ComparisonValuePair comparator)
             => arithmeticPreconditions.Add(stateSource, comparator);
+
+        public void AddDynamicPrecondition(Func<IReadOnlyDictionary<string, object?>, bool> stateChecker)
+            => dynamicPreconditions.Add(stateChecker);
 
         public void AddVariable<T>(string stateTarget, float initialValue, Func<float, T>? stateReduction, IReadOnlySet<ActionVariableTag>? tags = null)
             => InsertAndTagVariable(tags, (initialValue, ConvertResultConversion(stateReduction)), stateTarget);
@@ -99,6 +104,15 @@ namespace Vakuu.Engine
                 }
             }
 
+            bool StateChecker(MountainGoap.Action _, ConcurrentDictionary<string, object?> currentState)
+            {
+                foreach (var dynamicPrecondition in dynamicPreconditions)
+                    if (!dynamicPrecondition(currentState))
+                        return false;
+
+                return true;
+            }
+
             return new MountainGoap.Action(
                 Name,
                 null,
@@ -112,7 +126,8 @@ namespace Vakuu.Engine
                 preconditions,
                 comparativePreconditions: arithmeticPreconditions,
                 postconditions: postconditions,
-                stateMutator: Mutator);
+                stateMutator: Mutator,
+                stateChecker: StateChecker);
         }
 
         public void SetCost(float cost)
@@ -158,9 +173,21 @@ namespace Vakuu.Engine
             {
                 AddVariableFromState(combatant.HealthState, result => (ushort)result);
                 AddVariableFromState(combatant.MaxHealthState, result => (ushort)result);
+                AddVariable<ushort>(combatant.BlockGainVariable, 0.0f, null);
             }
 
-            AddVariableFromState(State.CardDraw, result => (byte)result);
+            foreach (var enemy in enemies)
+            {
+                AddVariableFromState(enemy.AttackCountState, result => (ushort)Math.Floor(result));
+                AddVariableFromState(enemy.AttackAmountVariable, result => (ushort)Math.Floor(result));
+            }
+
+            StatusRepository.Apply(status =>
+            {
+                AddVariableFromState(character.StatusState(status), result => (int)Math.Floor(result));
+                foreach (var enemy in enemies)
+                    AddVariableFromState(enemy.StatusState(status), result => (int)Math.Floor(result));
+            });
         }
 
         public void RepeatTaggedReducers(ActionVariableTag actionVariableTag, float multiplier) => throw new NotImplementedException();

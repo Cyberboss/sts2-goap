@@ -20,7 +20,7 @@ namespace Vakuu.Engine
 
         IEnumerable<CardModifier> Modifiers(bool upgraded) => Enumerable.Empty<CardModifier>();
 
-        void BuildAction(IReadOnlyCollection<Enemy> targets, IActionBuilder builder, bool upgraded);
+        void BuildAction(IReadOnlyCollection<Enemy> targets, IActionBuilder builder, PlayerCharacter character, bool upgraded);
 
         string ToString(bool upgraded)
             => upgraded

@@ -13,7 +13,7 @@
                     _ => ascension >= Ascension.DeadlyEnemies
                         ? 13
                         : 12,
-                    enemy.AttackAmountState));
+                    enemy.AttackAmountVariable));
             return true;
         }
     }

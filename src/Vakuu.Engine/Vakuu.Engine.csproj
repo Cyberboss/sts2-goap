@@ -9,6 +9,7 @@
     <PackageReference Include="Combinatorics" Version="2.0.0" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.5" />
     <PackageReference Include="MountainGoap" Version="1.1.1" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
   </ItemGroup>
 
   <ItemGroup>

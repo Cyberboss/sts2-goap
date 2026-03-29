@@ -1,4 +1,7 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
+
+using Vakuu.Engine.Statuses;
 
 namespace Vakuu.Engine.Cards.Ironclad
 {
@@ -11,6 +14,17 @@ namespace Vakuu.Engine.Cards.Ironclad
         public override IEnumerable<IReadOnlyCollection<IReadOnlyCollection<Enemy>>> SelectTargetPermutations(IEnumerable<Enemy> potentialTargets, bool upgraded)
             => SingleTargeted(potentialTargets);
 
-        public override void BuildAction(IReadOnlyCollection<Enemy> targets, IActionBuilder builder, bool upgraded) => throw new System.NotImplementedException();
+        protected override void BuildActionImpl(IReadOnlyCollection<Enemy> targets, IActionBuilder builder, bool upgraded)
+        {
+            var target = targets.Single();
+            builder.Reduce(
+                new Reducer(
+                    _ => upgraded ? 10 : 8,
+                    Variables.PlayerAttackDamage));
+            builder.Reduce(
+                new Reducer(
+                    input => input + (upgraded ? 3 : 2),
+                    target.StatusState<Vulnerable>()));
+        }
     }
 }

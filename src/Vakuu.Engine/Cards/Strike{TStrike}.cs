@@ -12,9 +12,11 @@ namespace Vakuu.Engine.Cards
         public override IEnumerable<IReadOnlyCollection<IReadOnlyCollection<Enemy>>> SelectTargetPermutations(IEnumerable<Enemy> potentialTargets, bool upgraded)
             => SingleTargeted(potentialTargets);
 
-        public override void BuildAction(IReadOnlyCollection<Enemy> targets, IActionBuilder builder, bool upgraded)
-        {
-        }
+        protected override void BuildActionImpl(IReadOnlyCollection<Enemy> targets, IActionBuilder builder, bool upgraded)
+            => builder.Reduce(
+                new Reducer(
+                    input => input + (upgraded ? 9 : 6),
+                    Variables.PlayerAttackDamage));
     }
 }
 

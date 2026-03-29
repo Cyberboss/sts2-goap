@@ -10,6 +10,6 @@ namespace Vakuu.Engine
 
         void Upgrade();
 
-        HashSet<CardModifier> GetModifiers();
+        public IReadOnlySet<CardModifier> Modifiers { get; }
     }
 }
