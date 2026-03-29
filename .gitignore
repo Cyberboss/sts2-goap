@@ -7,6 +7,8 @@
 
 !src/**/*.cs
 !src/**/*.csproj
+!tests/**/*.cs
+!tests/**/*.csproj
 
 [Oo]bj/
 [Bb]in/
