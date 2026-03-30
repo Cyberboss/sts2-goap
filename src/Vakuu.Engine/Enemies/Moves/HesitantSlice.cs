@@ -16,6 +16,10 @@
                 new Reducer(
                     _ => 6,
                     enemy.AttackAmountVariable));
+            actionBuilder.Reduce(
+                new Reducer(
+                    _ => 1,
+                    enemy.AttackCountState));
             return true;
         }
     }

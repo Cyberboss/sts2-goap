@@ -20,7 +20,11 @@ namespace Vakuu.Engine.Cards
             bool upgraded)
             => builder.Reduce(
                 new Reducer(
-                    input => input + (upgraded ? 8 : 5),
-                    Variables.PlayerBlockGain));
+                    input =>
+                    {
+                        return input + (upgraded ? 8 : 5);
+                    },
+                    Variables.PlayerBlockGain,
+                "Defend Base Block"));
     }
 }

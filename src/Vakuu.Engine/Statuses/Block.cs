@@ -9,8 +9,9 @@ namespace Vakuu.Engine.Statuses
         public void OnTurnStart(IActionBuilder actionBuilder, Combatant combatant)
             => actionBuilder.Reduce(
                 new Reducer(
-                    (variables, input) => 0,
-                    combatant.IncomingDamageVariable));
+                    _ => 0,
+                    combatant.StatusState(this),
+                    "Reset Block"));
 
         public void OnActionTaken(IActionBuilder actionBuilder, Combatant source, Combatant? target)
         {
@@ -19,8 +20,15 @@ namespace Vakuu.Engine.Statuses
 
             actionBuilder.Reduce(
                 new Reducer(
-                    (variables, input) => input - (float)Math.Min(input, variables[target.StatusState(this)]),
-                    target.IncomingDamageVariable));
+                    (variables, input) =>
+                    {
+                        var block = variables[target.StatusState(this)];
+                        var clamped = (float)Math.Min(input, block);
+                        var result = input - clamped;
+                        return result;
+                    },
+                    target.IncomingDamageVariable,
+                    "Apply Block Damage Reduction"));
         }
     }
 }

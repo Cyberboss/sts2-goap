@@ -25,7 +25,7 @@ namespace Vakuu.Engine.Goals
                           new ComparisonValuePair
                           {
                               Operator = ComparisonOperator.GreaterThan,
-                              Value = 0,
+                              Value = (ushort)0,
                           }
                       },
                   })

@@ -7,9 +7,9 @@ namespace Vakuu.Engine.Tests.Battle.Ironclad.ActI
     public sealed class TestBasicNibbit : IroncladBattleAITest
     {
         [TestMethod]
-        public void FirstEncounter()
+        public async Task FirstEncounter()
         {
-            new DefaultLogger();
+            var logger = new DefaultLogger();
             Setup(
                 new Nibbit(),
                 CreateCharacter(),
@@ -28,6 +28,8 @@ namespace Vakuu.Engine.Tests.Battle.Ironclad.ActI
                 if (play == null)
                     break;
             }
+
+            await logger.logger.DisposeAsync();
         }
     }
 }

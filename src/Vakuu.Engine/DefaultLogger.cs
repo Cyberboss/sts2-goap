@@ -1,7 +1,7 @@
 ﻿namespace Vakuu.Engine
 {
-    using System.Collections.Concurrent;
     using System.Collections.Generic;
+    using System.Linq;
 
     using MountainGoap;
 
@@ -10,12 +10,13 @@
 
     public class DefaultLogger
     {
-        private readonly Logger logger;
+        public readonly Logger logger;
 
         public DefaultLogger()
         {
             var config = new LoggerConfiguration();
-            config.WriteTo.Console();
+            System.IO.File.Delete("S:/workspace/code/cs/vakuu-engine/test.txt");
+            config.WriteTo.Async(x => x.File("S:/workspace/code/cs/vakuu-engine/test.txt"));
             Agent.OnAgentActionSequenceCompleted += OnAgentActionSequenceCompleted;
             Agent.OnAgentStep += OnAgentStep;
             Agent.OnPlanningStarted += OnPlanningStarted;
@@ -30,17 +31,38 @@
             logger = config.CreateLogger();
         }
 
-        private void OnEvaluatedActionNode(ActionNode node, ConcurrentDictionary<ActionNode, ActionNode> nodes)
+        static ushort LastSeenDepth = 0;
+        private void OnEvaluatedActionNode(ActionNode node)
         {
-            var cameFromList = new List<ActionNode>();
-            var traceback = node;
-            while (nodes.ContainsKey(traceback) && traceback.Action != nodes[traceback].Action)
+            if (node.StepsSoFar > LastSeenDepth)
             {
-                cameFromList.Add(traceback);
-                traceback = nodes[traceback];
+                LastSeenDepth = node.StepsSoFar;
+
+                var cameFromList = new List<ActionNode>();
+                var traceback = node;
+                do
+                {
+                    if (traceback == null)
+                        break;
+
+                    cameFromList.Add(traceback);
+                    traceback = traceback.CameFrom;
+                }
+                while (traceback != node);
+
+                cameFromList.Reverse();
+
+                if (cameFromList.Count != node.StepsSoFar)
+                    throw new System.InvalidOperationException($"wtf {cameFromList.Count} {node.StepsSoFar}");
+
+                logger.Information(
+                    "Evaluating path ({n}):{new}\t- {node}{new1}Final State:{new2}\t- {states}",
+                    cameFromList.Count,
+                    System.Environment.NewLine,
+                    string.Join($"{System.Environment.NewLine}\t- ", cameFromList.Select(cameFromNode => $" {cameFromNode.CostSoFar} - {cameFromNode.Action.Name}")),
+                    System.Environment.NewLine,
+                    string.Join($"{System.Environment.NewLine}\t- ", node.State.OrderBy(kvp => kvp.Key).Select(kvp => $"{kvp.Key} - {kvp.Value}")));
             }
-            cameFromList.Reverse();
-            logger.Information("Evaluating node {node} with {count} nodes leading to it.", node.Action?.Name, cameFromList.Count - 1);
         }
 
         private void OnPlanUpdated(Agent agent, List<Action> actionList)

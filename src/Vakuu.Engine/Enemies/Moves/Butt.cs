@@ -13,7 +13,13 @@
                     _ => ascension >= Ascension.DeadlyEnemies
                         ? 13
                         : 12,
-                    enemy.AttackAmountVariable));
+                    enemy.AttackAmountVariable,
+                    "Apply Butt Damage"));
+            actionBuilder.Reduce(
+                new Reducer(
+                    _ => 1,
+                    enemy.AttackCountState,
+                    "Apply Butt Attack Count"));
             return true;
         }
     }

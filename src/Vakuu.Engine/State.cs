@@ -16,6 +16,8 @@
         public const string EnemyCurrentHealthPrefix = "Enemy HP: ";
         public const string EnemyMaxHealthPrefix = "Enemy Max HP: ";
         public const string Energy = "Energy";
+        public const string EnergyGainBase = "Base Energy Gain";
+        public const string EnergyGainTemp = "Temp Energy Gain";
         public const string Gold = "Gold";
         public const string HandSize = "# Cards in Hand";
         public const string PlayerCurrentHealth = "HP";

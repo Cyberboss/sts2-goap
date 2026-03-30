@@ -25,6 +25,10 @@ namespace Vakuu.Engine
                 var hp = knownHPs[i];
                 state.Add(enemy.MaxHealthState, hp);
                 state.Add(enemy.HealthState, hp);
+                state.Add(enemy.BlockGainVariable, (ushort)0);
+                state.Add(enemy.AttackCountState, 0);
+                state.Add(enemy.AttackAmountVariable, 0);
+
                 archetype.OnSpawn(state, ascension);
                 yield return enemy;
             }

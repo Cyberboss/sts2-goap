@@ -13,7 +13,8 @@ namespace Vakuu.Engine.Enemies.Moves
             actionBuilder.Reduce(
                 new Reducer(
                     input => input + 2,
-                    enemy.StatusState<Strength>()));
+                    enemy.StatusState<Strength>(),
+                "Hiss Base Str"));
             return false;
         }
     }

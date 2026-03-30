@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -35,15 +34,17 @@ namespace Vakuu.Engine
             ArgumentNullException.ThrowIfNull(encounter);
             ArgumentNullException.ThrowIfNull(config);
 
-            var state = new ConcurrentDictionary<string, object?>
+            var state = new Dictionary<string, object?>
             {
                 { character.HealthState, playerHealth.Current },
                 { character.MaxHealthState, playerHealth.Max },
                 { State.CardDraw, Constants.BaseCardDraw },
-                { State.TurnNumber, 1 },
-                { State.DeckSize, character.Deck.Count },
+                { State.TurnNumber, (byte)1 },
+                { State.DeckSize, (byte)character.Deck.Count },
                 { State.DiscardSize, 0 },
                 { State.Energy, startingEnergy },
+                { State.EnergyGainBase, Constants.DefaultEnergy },
+                { State.EnergyGainTemp, (sbyte)0 },
             };
 
             StatusRepository.Apply(status => state.Add(character.StatusState(status), 0));
@@ -52,13 +53,13 @@ namespace Vakuu.Engine
             enemies = encounter.CreateOpponents(enemiesHPs.ToList(), state, enemyAllocator, ascension).ToList();
             state.Add(State.EnemiesAlive, enemies.Count);
 
-            var movesetCycleTurns = 1;
+            ushort movesetCycleTurns = 1;
+            var initialEnemyActionBuilder = new ActionBuilder(enemies, character, () => { }, "Enemy Initial Move", 0.0f);
             foreach (var enemy in enemies)
             {
-                movesetCycleTurns = LeastCommonMultiple(movesetCycleTurns, enemy.Archetype.Moveset.Count);
-                StatusRepository.Apply(status => state.Add(enemy.StatusState(status), 0));
-                state.Add(enemy.AttackCountState, 0);
-                state.Add(enemy.AttackAmountVariable, 0);
+                movesetCycleTurns = (ushort)LeastCommonMultiple(movesetCycleTurns, enemy.Archetype.Moveset.Count);
+                StatusRepository.Apply(status => state.Add(enemy.StatusState(status), (short)0));
+                enemy.ApplyMovesAheadOfPlayerTurn(initialEnemyActionBuilder, character, ascension, 0);
             }
 
             void SetPlay(Play play) => nextPlay = play;
@@ -144,7 +145,7 @@ namespace Vakuu.Engine
             }
 
             var advanceTurnReducer = new Reducer(
-                turnNumber => turnNumber + 1U,
+                turnNumber => turnNumber + 1,
                 State.TurnNumber);
             var resetCardDrawReducer = new Reducer(
                 _ => Constants.BaseCardDraw,
@@ -153,6 +154,13 @@ namespace Vakuu.Engine
             var resetEnemyStateVariablesReducers = enemies
                 .SelectMany(GenerateEnemyResetReducers)
                 .ToList();
+
+            var resetEnergyGainReducer = new Reducer(
+                _ => 0.0f,
+                State.EnergyGainTemp);
+            var applyEnergyGainReducer = new Reducer(
+                (variables, _) => variables[State.EnergyGainBase] + variables[State.EnergyGainTemp],
+                State.Energy);
 
             var basicCardMoveReducers = cards
                 .Where(
@@ -208,7 +216,8 @@ namespace Vakuu.Engine
                                 var retainInHand = !card.Modifiers.Contains(CardModifier.Retain) && (bool)state[card.InHandState]!;
                                 if (retainInHand || (bool)state[card.InDiscardState]!)
                                 {
-                                    var potentialToDraw = (byte)state[State.CardDraw]! > (int)state[State.DeckSize]!;
+                                    var cardDraw = (byte)state[State.CardDraw]!;
+                                    var potentialToDraw = cardDraw > (byte)state[State.DeckSize]!;
                                     if (potentialToDraw)
                                         return true;
                                 }
@@ -223,11 +232,14 @@ namespace Vakuu.Engine
                     input => input - (i + 1),
                     State.DeckSize);
 
-            ActionBuilder BuildEndTurnAction(IReadOnlyList<ulong> drawnCards, int movesetIndex)
+            ActionBuilder BuildEndTurnAction(IReadOnlyList<ulong> drawnCards, int nextMovesetIndex)
             {
                 var nameBuilder = new StringBuilder();
-                nameBuilder.Append("End Turn (Cycle ");
-                nameBuilder.Append(movesetIndex + 1);
+                var thisMovesetIndex = nextMovesetIndex > 0
+                    ? nextMovesetIndex - 1
+                    : movesetCycleTurns - 1;
+                nameBuilder.Append("End Turn (Cycle: ");
+                nameBuilder.Append(thisMovesetIndex + 1);
                 nameBuilder.Append('/');
                 nameBuilder.Append(movesetCycleTurns);
                 nameBuilder.Append("). Draw");
@@ -248,6 +260,19 @@ namespace Vakuu.Engine
 
                         nameBuilder.Append(cards[cardID].ToString());
                     }
+                }
+
+                nameBuilder.Append(". ");
+                bool first2 = true;
+                foreach (var enemy in enemies)
+                {
+                    if (!first2)
+                        nameBuilder.AppendLine(", ");
+                    else
+                        first2 = false;
+                    nameBuilder.Append(enemy);
+                    nameBuilder.Append(": ");
+                    nameBuilder.Append(enemy.Archetype.Moveset[thisMovesetIndex].Name);
                 }
 
                 var name = nameBuilder.ToString();
@@ -273,37 +298,61 @@ namespace Vakuu.Engine
                     State.CardDraw,
                     (byte)drawnCards.Count);
 
+                endTurnActionBuilder.AddDynamicPrecondition(
+                    state =>
+                    {
+                        var turnNumber = (byte)state[State.TurnNumber]!;
+                        var modulo = turnNumber % movesetCycleTurns;
+                        var equivalent = modulo == nextMovesetIndex;
+                        /*
+                        if (equivalent && movesetIndex == 2 && turnNumber < 3)
+                        {
+                            Console.WriteLine($"T: {turnNumber}, M: {modulo}");
+                            Debugger.Launch();
+                            Console.WriteLine($"T: {turnNumber}, M: {modulo}");
+                        }*/
+
+                        return equivalent;
+                    });
+
+                endTurnActionBuilder.AddVariableFromState(State.TurnNumber, result => (byte)result);
+
                 foreach (var cardID in drawnCards)
                     endTurnActionBuilder.AddDynamicPrecondition(cardCanBeInHandPreconditions[cardID]);
 
-                endTurnActionBuilder.AddVariable(State.Energy, Constants.DefaultEnergy, result => (byte)Math.Floor(result));
-
-                foreach (var reducer in basicCardMoveReducers.Concat(resetEnemyStateVariablesReducers))
+                foreach (var reducer in basicCardMoveReducers)
                     endTurnActionBuilder.Reduce(reducer);
 
                 StatusRepository.Apply(status => status.OnTurnEnd(endTurnActionBuilder, character));
                 foreach (var relic in character.Relics)
                     relic.OnTurnEnd(endTurnActionBuilder);
 
-                var aliveEnemies = enemies.Where(enemy => enemy.Alive);
-                foreach (var enemy in aliveEnemies)
+                foreach (var enemy in enemies)
                     StatusRepository.Apply(status => status.OnTurnStart(endTurnActionBuilder, enemy));
 
-                foreach (var enemy in aliveEnemies)
-                    enemy.ApplyMoves(endTurnActionBuilder, character, ascension, movesetIndex);
+                foreach (var enemy in enemies)
+                    enemy.ApplyOnTurn(endTurnActionBuilder, character);
 
-                endTurnActionBuilder.ApplyCombatBuffers();
+                endTurnActionBuilder.ApplyCombatBuffers(false);
 
-                foreach (var enemy in aliveEnemies)
+                foreach (var enemy in enemies)
                     StatusRepository.Apply(status => status.OnTurnEnd(endTurnActionBuilder, enemy));
 
                 endTurnActionBuilder.Reduce(advanceTurnReducer);
                 endTurnActionBuilder.Reduce(resetCardDrawReducer);
+                foreach (var reducer in resetEnemyStateVariablesReducers)
+                    endTurnActionBuilder.Reduce(reducer);
+
+                foreach (var enemy in enemies)
+                    enemy.ApplyMovesAheadOfPlayerTurn(endTurnActionBuilder, character, ascension, nextMovesetIndex);
 
                 foreach (var relic in character.Relics)
                     relic.OnTurnStart(endTurnActionBuilder);
 
                 StatusRepository.Apply(status => status.OnTurnStart(endTurnActionBuilder, character));
+
+                endTurnActionBuilder.Reduce(applyEnergyGainReducer);
+                endTurnActionBuilder.Reduce(resetEnergyGainReducer);
 
                 endTurnActionBuilder.Reduce(emptyDiscardsGroup);
 
@@ -317,8 +366,8 @@ namespace Vakuu.Engine
             }
 
             var endTurnActionBuilders = new List<ActionBuilder>();
-            for (var i = 0; i <= Constants.MaxHandSize; ++i)
-                for (var j = 0; j < movesetCycleTurns; ++j)
+            for (byte i = 0; i <= Constants.MaxHandSize; ++i)
+                for (ushort j = 0; j < movesetCycleTurns; ++j)
                     foreach (var combination in new Combinations<ulong>(cards.Keys, i))
                         endTurnActionBuilders.Add(BuildEndTurnAction(combination, j));
 
@@ -326,6 +375,8 @@ namespace Vakuu.Engine
                 builder.SetCost(endTurnActionBuilders.Count);
 
             actions.AddRange(endTurnActionBuilders.Select(builder => builder.Build()));
+
+            initialEnemyActionBuilder.Build().ApplyEffects(state);
 
             agent = new Agent(
                 $"Encounter {encounter.EncounterType}: {encounter.Name}",

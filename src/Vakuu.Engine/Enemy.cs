@@ -32,20 +32,28 @@ namespace Vakuu.Engine
 
         public string AttackCountState { get; }
 
-        public bool Alive { get; private set; }
-
         public override string ToString() => $"{Archetype.Name} (#{ID})";
 
-        public void ApplyMoves(IActionBuilder actionBuilder, PlayerCharacter character, Ascension ascension, int movesetIndex)
+        public void ApplyMovesAheadOfPlayerTurn(IActionBuilder actionBuilder, PlayerCharacter character, Ascension ascension, int movesetIndex)
         {
             var moveset = Archetype.Moveset;
-            var move = moveset[moveset.Count % movesetIndex];
+            var move = moveset[movesetIndex % moveset.Count];
             bool targetsPlayer = move.Apply(actionBuilder, this, ascension);
+            StatusRepository.Apply(status => status.OnActionTaken(actionBuilder, this, targetsPlayer ? character : null));
+        }
+
+        public void ApplyOnTurn(IActionBuilder actionBuilder, PlayerCharacter character)
+        {
             actionBuilder.Reduce(
                 new Reducer(
-                    (variables, input) => input + ((float)Math.Floor(variables[AttackAmountVariable]) * variables[AttackCountState]),
-                    character.IncomingDamageVariable));
-            StatusRepository.Apply(status => status.OnActionTaken(actionBuilder, this, targetsPlayer ? character : null));
+                    (variables, input) =>
+                    {
+                        var attackDamage = (float)Math.Floor(variables[AttackAmountVariable]);
+                        var attackCount = (float)Math.Floor(variables[AttackCountState]);
+                        return input + (attackCount * attackDamage);
+                    },
+                    character.IncomingDamageVariable,
+                    $"Apply incoming damage from {this}"));
         }
     }
 }

@@ -4,20 +4,10 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 
-using Vakuu.Engine.Statuses;
-
 namespace Vakuu.Engine
 {
     public sealed class FieldCard : ICard
     {
-        private static readonly Reducer ResetAttackDamageReducer = new Reducer(
-            input => 0,
-            Variables.PlayerAttackDamage);
-
-        private static readonly Reducer ResetBlockGainReducer = new Reducer(
-            input => 0,
-            Variables.PlayerBlockGain);
-
         public delegate void PlayDelegate(Play play);
 
         readonly PlayDelegate playSink;
@@ -39,11 +29,11 @@ namespace Vakuu.Engine
             RecalculateModifiers(additionalModifiers);
 
             var name = ToString();
-            InHandState = $"{State.CardInHandPrefix} {name}";
-            InDiscardState = $"{State.CardInDiscardPrefix} {name}";
-            InDeckState = $"{State.CardInDeckPrefix} {name}";
-            InExhaustState = $"{State.CardInExhaustPrefix} {name}";
-            RemovedState = $"{State.CardIsPlayedPowerPrefix} {name}";
+            InHandState = State.CardInHandPrefix + name;
+            InDiscardState = State.CardInDiscardPrefix + name;
+            InDeckState = State.CardInDeckPrefix + name;
+            InExhaustState = State.CardInExhaustPrefix + name;
+            RemovedState = State.CardIsPlayedPowerPrefix + name;
         }
 
         public ulong ID { get; init; }
@@ -78,24 +68,13 @@ namespace Vakuu.Engine
         public static void FinalizePreviousCardAction(IReadOnlyCollection<Enemy> targets, IActionBuilder builder, PlayerCharacter character)
         {
             foreach (var target in targets)
-            {
                 builder.Reduce(
                     new Reducer(
                         (variables, input) => input - Math.Min(input, variables[Variables.PlayerAttackDamage]),
-                        target.HealthState));
-                builder.Reduce(
-                    new Reducer(
-                        (variables, input) => variables[target.HealthState] == 0.0f ? input - 1 : input,
-                        State.EnemiesAlive));
-            }
+                        target.IncomingDamageVariable,
+                        $"Apply Attack Damage from Card Play to Enemy incoming damage: {target}"));
 
-            builder.Reduce(
-                new Reducer(
-                    (variables, input) => input - variables[Variables.PlayerBlockGain],
-                    character.StatusState<Block>()));
-
-            builder.Reduce(ResetAttackDamageReducer);
-            builder.Reduce(ResetBlockGainReducer);
+            builder.ApplyCombatBuffers(true);
         }
 
         public bool EquivalentTo(FieldCard other)
@@ -180,14 +159,12 @@ namespace Vakuu.Engine
 
                     builder.AddVariableFromState(State.CardDraw, result => (byte)result);
 
-                    builder.AddVariable<int>(Variables.PlayerAttackDamage, 0, null);
-                    builder.AddVariable<int>(Variables.PlayerCardActionNumber, 0, null);
+                    builder.AddVariable<ushort>(Variables.PlayerAttackDamage, 0, null);
+                    builder.AddVariable<byte>(Variables.PlayerCardActionNumber, 0, null);
 
                     Archetype.BuildAction(targetList, builder, character, Upgraded);
 
                     FinalizePreviousCardAction(targetList, builder, character);
-
-                    builder.ApplyCombatBuffers();
 
                     if (targetList.Count > 0)
                         foreach (var target in targetList)

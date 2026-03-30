@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -48,7 +47,7 @@ namespace Vakuu.Engine
             this.enemies = enemies.ToList();
             this.character = character;
 
-            AddDefaultVariables();
+            AddDefaults();
         }
 
         public string Name { get; }
@@ -79,18 +78,49 @@ namespace Vakuu.Engine
         public void Reduce(IReducer reducer)
             => reducers.Add(reducer);
 
-        public void ApplyCombatBuffers()
+        public void ApplyCombatBuffers(bool skipEnemyBlock)
         {
             foreach (var combatant in Combatants())
             {
+                if (!skipEnemyBlock || combatant == character)
+                {
+                    Reduce(
+                        new Reducer(
+                            (variables, input) => input + variables[combatant.BlockGainVariable],
+                            combatant.StatusState<Block>(),
+                            $"Apply Block Gain to {combatant}"));
+                    Reduce(
+                        new Reducer(
+                            _ => 0.0f,
+                            combatant.BlockGainVariable,
+                            $"Reset Block Gain for {combatant}"));
+                }
+
                 Reduce(
                     new Reducer(
-                        (variables, input) => input + variables[combatant.BlockGainVariable],
-                        combatant.StatusState<Block>()));
+                        (variables, input) =>
+                        {
+                            var damage = variables[combatant.IncomingDamageVariable];
+                            var maxDamage = Math.Min(input, damage);
+                            var result = input - maxDamage;
+                            return result;
+                        },
+                        combatant.HealthState,
+                            $"Apply Incoming Damage to {combatant}"));
                 Reduce(
                     new Reducer(
-                        (variables, input) => input - Math.Min(input, variables[combatant.IncomingDamageVariable]),
-                        combatant.HealthState));
+                        _ => 0.0f,
+                        combatant.IncomingDamageVariable,
+                        $"Reset Incoming Damage for {combatant}"));
+
+                if (combatant != character)
+                {
+                    Reduce(
+                        new Reducer(
+                            (variables, input) => variables[combatant.HealthState] == 0.0f ? input - 1 : input,
+                            State.EnemiesAlive,
+                            "Reduce enemies alive if target killed"));
+                }
             }
         }
 
@@ -104,7 +134,7 @@ namespace Vakuu.Engine
 
             built = true;
 
-            void Mutator(MountainGoap.Action _, ConcurrentDictionary<string, object?> currentState)
+            void Mutator(MountainGoap.Action _, Dictionary<string, object?> currentState)
             {
                 Dictionary<string, float> workingVariables = new Dictionary<string, float>(variables.Count);
                 foreach (var kvp in variables)
@@ -134,7 +164,7 @@ namespace Vakuu.Engine
                 }
             }
 
-            bool StateChecker(MountainGoap.Action _, ConcurrentDictionary<string, object?> currentState)
+            bool StateChecker(MountainGoap.Action _, Dictionary<string, object?> currentState)
             {
                 foreach (var dynamicPrecondition in dynamicPreconditions)
                     if (!dynamicPrecondition(currentState))
@@ -190,28 +220,35 @@ namespace Vakuu.Engine
         IReadOnlyList<string> GetVariablesNameFromActionTag(ActionVariableTag tag)
             => taggedVariables[(int)tag];
 
-        void AddDefaultVariables()
+        void AddDefaults()
         {
+            // important AStar optimization
+            AddPrecondition(character.HealthState, new ComparisonValuePair
+            {
+                Value = (ushort)0,
+                Operator = ComparisonOperator.GreaterThan,
+            });
+
+            AddVariableFromState(State.DeckSize, result => (byte)Math.Floor(result));
+            AddVariableFromState(State.Energy, result => (byte)Math.Floor(result));
+            AddVariableFromState(State.EnergyGainBase, result => (byte)Math.Floor(result));
+            AddVariableFromState(State.EnergyGainTemp, result => (sbyte)Math.Floor(result));
+            AddVariable<ushort>(character.BlockGainVariable, 0.0f, null);
+
             foreach (var combatant in Combatants())
             {
                 AddVariableFromState(combatant.HealthState, result => (ushort)result);
                 AddVariableFromState(combatant.MaxHealthState, result => (ushort)result);
-                AddVariable<ushort>(combatant.IncomingDamageVariable, 0.0f, null);
-                AddVariable<ushort>(combatant.BlockGainVariable, 0.0f, null);
+                AddVariable<ushort>(combatant.IncomingDamageVariable, initialValue: 0.0f, null);
+                StatusRepository.Apply(status => AddVariableFromState(combatant.StatusState(status), result => (short)Math.Floor(result)));
             }
 
             foreach (var enemy in enemies)
             {
                 AddVariableFromState(enemy.AttackCountState, result => (ushort)Math.Floor(result));
                 AddVariableFromState(enemy.AttackAmountVariable, result => (ushort)Math.Floor(result));
+                AddVariableFromState<byte>(enemy.BlockGainVariable, null);
             }
-
-            StatusRepository.Apply(status =>
-            {
-                AddVariableFromState(character.StatusState(status), result => (int)Math.Floor(result));
-                foreach (var enemy in enemies)
-                    AddVariableFromState(enemy.StatusState(status), result => (int)Math.Floor(result));
-            });
         }
 
         public void RepeatTaggedReducers(ActionVariableTag actionVariableTag, float multiplier) => throw new NotImplementedException();

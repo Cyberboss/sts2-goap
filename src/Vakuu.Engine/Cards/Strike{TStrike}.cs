@@ -18,7 +18,8 @@ namespace Vakuu.Engine.Cards
             => builder.Reduce(
                 new Reducer(
                     input => input + (upgraded ? 9 : 6),
-                    Variables.PlayerAttackDamage));
+                    Variables.PlayerAttackDamage,
+                "Strike Base Damage"));
     }
 }
 

@@ -22,11 +22,13 @@ namespace Vakuu.Engine.Cards.Ironclad
             builder.Reduce(
                 new Reducer(
                     _ => upgraded ? 10 : 8,
-                    Variables.PlayerAttackDamage));
+                    Variables.PlayerAttackDamage,
+                "Bash Base Damage"));
             builder.Reduce(
                 new Reducer(
                     input => input + (upgraded ? 3 : 2),
-                    target.StatusState<Vulnerable>()));
+                    target.StatusState<Vulnerable>(),
+                "Bash Base Vuln"));
         }
     }
 }
